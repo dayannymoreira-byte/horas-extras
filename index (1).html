@@ -129,7 +129,7 @@
   /* Divider */
   .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
 
-  @medata_lanc (max-width: 600px) {
+  @media (max-width: 600px) {
     .row2, .row3 { grid-template-columns: 1fr; }
     .metrics { grid-template-columns: 1fr 1fr; }
     .tabs { gap: 2px; }
@@ -148,7 +148,7 @@
     <button class="tab active" onclick="showTab('lancar')">Lançar horas</button>
     <button class="tab" onclick="showTab('meus')">Meus lançamentos</button>
     <button class="tab" onclick="showTab('gestor')">Painel do gestor</button>
-    <button class="tab" onclick="showTab('email')">E-mail data_lanc 21</button>
+    <button class="tab" onclick="showTab('email')">E-mail dia 21</button>
     <button class="tab" onclick="showTab('config')">Configurações</button>
   </div>
 
@@ -236,7 +236,7 @@
   <!-- EMAIL -->
   <div id="sec-email" class="section">
     <div class="card">
-      <p class="card-title">Prévia do e-mail — data_lanc 21</p>
+      <p class="card-title">Prévia do e-mail — dia 21</p>
       <div class="filters" style="margin-bottom:1rem">
         <select id="e-mes" onchange="renderEmail()" style="max-width:220px"></select>
       </div>
@@ -311,7 +311,7 @@ async function apiGet() {
   try {
     const r = await fetch(API + '?limit=5000');
     const data = await r.json();
-    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: l.data_lanc||l.data||"",  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
+    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: l.data_lanc||l.dia||l.data||"",  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
     populateMeses();
   } catch(e) { console.error(e); }
 }
