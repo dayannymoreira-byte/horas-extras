@@ -311,7 +311,7 @@ async function apiGet() {
   try {
     const r = await fetch(API + '?limit=5000');
     const data = await r.json();
-    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: l.data_lanc||l.dia||l.data||"",  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
+    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: l.dataregistro||l.data_lanc||l.dia||l.data||"",  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
     populateMeses();
   } catch(e) { console.error(e); }
 }
@@ -418,7 +418,7 @@ async function lancar() {
   if (min <= 0) { showAlert('msg-err', 'O horário de término deve ser após o início.'); return; }
   const btn = document.getElementById('btn-lancar');
   btn.disabled = true; btn.textContent = 'Registrando...';
-  const ok = await apiPost({ id: uid(), nome: nome, depto: depto, data_lanc: data, inicio: ' '+inicio, fim: ' '+fim, minutos: ' '+String(min), motivo: motivo });
+  const ok = await apiPost({ id: uid(), nome: nome, depto: depto, dataregistro: data, inicio: ' '+inicio, fim: ' '+fim, minutos: ' '+String(min), motivo: motivo });
   btn.disabled = false; btn.textContent = 'Registrar horas extras';
   if (ok) {
     await apiGet();
