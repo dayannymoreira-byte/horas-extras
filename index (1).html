@@ -418,7 +418,7 @@ async function lancar() {
   if (min <= 0) { showAlert('msg-err', 'O horário de término deve ser após o início.'); return; }
   const btn = document.getElementById('btn-lancar');
   btn.disabled = true; btn.textContent = 'Registrando...';
-  const ok = await apiPost({ id: uid(), Nome: nome, Depto: depto, Data: data, Inicio: inicio, Fim: fim, Minutos: min, Motivo: motivo });
+  const ok = await apiPost({ id: uid(), nome: nome, depto: depto, dia: data, inicio: inicio, fim: fim, minutos: String(min), motivo: motivo });
   btn.disabled = false; btn.textContent = 'Registrar horas extras';
   if (ok) {
     await apiGet();
