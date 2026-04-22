@@ -292,7 +292,45 @@ function calcMin(inicio, fim) {
   return t;
 }
 
-function getMesAtual() { return new Date().toISOString().slice(0,7); }
+function getMesAtual() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+
+function getPeriodoAtual() {
+  const d = new Date(); const dia = d.getDate(); const mes = d.getMonth(); const ano = d.getFullYear();
+  let iM, iA, fM, fA;
+  if (dia >= 21) { iA=ano; iM=mes; fA=mes===11?ano+1:ano; fM=mes===11?0:mes+1; }
+  else { iA=mes===0?ano-1:ano; iM=mes===0?11:mes-1; fA=ano; fM=mes; }
+  return { ini: iA+'-'+String(iM+1).padStart(2,'0')+'-21', fim: fA+'-'+String(fM+1).padStart(2,'0')+'-20' };
+}
+
+function getPeriodos() {
+  const ps = new Set();
+  lancamentos.forEach(l => {
+    if (!l.data) return;
+    const [ano,mes,dia] = l.data.split('-').map(Number);
+    let pA,pM;
+    if (dia>=21){pA=ano;pM=mes;} else {pA=mes===1?ano-1:ano;pM=mes===1?12:mes-1;}
+    ps.add(pA+'-'+String(pM).padStart(2,'0'));
+  });
+  const cur = getPeriodoAtual(); const [ca,cm] = cur.ini.split('-');
+  ps.add(ca+'-'+cm);
+  return [...ps].sort().reverse();
+}
+
+function periodoLabel(p) {
+  const [ano,mes] = p.split('-').map(Number);
+  const ini = new Date(ano,mes-1,21).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  const fM=mes===12?1:mes+1; const fA=mes===12?ano+1:ano;
+  const fim = new Date(fA,fM-1,20).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+  return ini+' a '+fim;
+}
+
+function filtraPeriodo(dados, p) {
+  const [ano,mes] = p.split('-').map(Number);
+  const ini = ano+'-'+String(mes).padStart(2,'0')+'-21';
+  const fM=mes===12?1:mes+1; const fA=mes===12?ano+1:ano;
+  const fim = fA+'-'+String(fM).padStart(2,'0')+'-20';
+  return dados.filter(l => l.data && l.data >= ini && l.data <= fim);
+}
 
 function fmtData(d) { return d ? d.split('-').reverse().join('/') : ''; }
 
@@ -311,7 +349,7 @@ async function apiGet() {
   try {
     const r = await fetch(API + '?limit=5000');
     const data = await r.json();
-    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: l.dt||l.dataregistro||l.data_lanc||l.dia||l.data||"",  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
+    lancamentos = (Array.isArray(data) ? data : []).map(l => ({ id: l.id||"",  nome: l.nome||"",  depto: l.depto||"",  data: (function(d){ d=l.dt||l.dataregistro||l.data_lanc||l.dia||l.data||''; if(d.includes('/')){ var p=d.split('/'); return p[2]+'-'+p[1]+'-'+p[0]; } return d; })(),  inicio: (l.inicio||'').trim().slice(0,5), fim: (l.fim||'').trim().slice(0,5), minutos: parseInt((l.minutos||'').trim())||0,  motivo: l.motivo||"" }));
     populateMeses();
   } catch(e) { console.error(e); }
 }
@@ -356,17 +394,12 @@ function refreshColabSelects() {
 }
 
 function populateMeses() {
-  const meses = [...new Set(lancamentos.map(l => l.data ? l.data.slice(0,7) : '').filter(Boolean))].sort().reverse();
-  const cur = getMesAtual();
-  const all = meses.includes(cur) ? meses : [cur, ...meses];
-  const opts = all.map(m => {
-    const [y,mo] = m.split('-');
-    const label = new Date(+y,+mo-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
-    return `<option value="${m}">${label}</option>`;
-  }).join('');
+  const periodos = getPeriodos();
+  const cur = getPeriodoAtual(); const [ca,cm] = cur.ini.split('-'); const curP = ca+'-'+cm;
+  const opts = periodos.map(p => `<option value="${p}">${periodoLabel(p)}</option>`).join('');
   document.getElementById('e-mes').innerHTML = opts;
-  document.getElementById('m-mes').innerHTML = '<option value="">Todos os meses</option>' + opts;
-  if (!document.getElementById('g-mes').value) document.getElementById('g-mes').value = cur;
+  document.getElementById('m-mes').innerHTML = '<option value="">Todos os períodos</option>' + opts;
+  if (!document.getElementById('g-mes').value) document.getElementById('g-mes').value = curP;
 }
 
 // ── Tab switching ──────────────────────────────────────────
@@ -455,13 +488,13 @@ function renderMeus() {
     tb.innerHTML = '<tr><td colspan="6" class="empty">Selecione seu nome para ver os lançamentos.</td></tr>'; return;
   }
   let dados = lancamentos.filter(l => l.nome === nome);
-  if (mes) dados = dados.filter(l => l.data && l.data.startsWith(mes));
+  if (mes) dados = filtraPeriodo(dados, mes);
   const totalAcum = lancamentos.filter(l => l.nome === nome).reduce((a,b) => a+b.minutos, 0);
-  const totalMesAtual = lancamentos.filter(l => l.nome === nome && l.data && l.data.startsWith(getMesAtual())).reduce((a,b) => a+b.minutos, 0);
+  const curP2 = getPeriodoAtual(); const [ca2,cm2] = curP2.ini.split('-'); const totalMesAtual = filtraPeriodo(lancamentos.filter(l=>l.nome===nome), ca2+'-'+cm2).reduce((a,b)=>a+b.minutos,0);
   mg.style.display = 'grid';
   mg.innerHTML = `
     <div class="metric"><div class="metric-label">Total acumulado</div><div class="metric-value">${minToH(totalAcum)}</div></div>
-    <div class="metric"><div class="metric-label">Este mês</div><div class="metric-value">${minToH(totalMesAtual)}</div></div>
+    <div class="metric"><div class="metric-label">Período atual</div><div class="metric-value">${minToH(totalMesAtual)}</div></div>
     <div class="metric"><div class="metric-label">Lançamentos</div><div class="metric-value">${dados.length}</div></div>
   `;
   dados = dados.sort((a,b) => (b.data||'').localeCompare(a.data||''));
@@ -486,7 +519,7 @@ function renderGestor() {
   let dados = lancamentos;
   if (fNome) dados = dados.filter(l => l.nome === fNome);
   if (fDepto) dados = dados.filter(l => l.depto === fDepto);
-  if (fMes) dados = dados.filter(l => l.data && l.data.startsWith(fMes));
+  if (fMes) dados = filtraPeriodo(dados, fMes);
   const totalMin = dados.reduce((a,b) => a+b.minutos, 0);
   const pessoas = [...new Set(dados.map(l => l.nome))].length;
   document.getElementById('g-m1').textContent = minToH(totalMin);
@@ -510,14 +543,13 @@ function renderGestor() {
 
 // ── Email ─────────────────────────────────────────────────
 function renderEmail() {
-  const mes = document.getElementById('e-mes').value || getMesAtual();
-  const [ano, m] = mes.split('-');
-  const nomeMes = new Date(+ano,+m-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
-  const deste = lancamentos.filter(l => l.data && l.data.startsWith(mes));
-  if (!deste.length) { document.getElementById('email-text').textContent = 'Nenhum lançamento para este mês.'; return; }
+  const mes = document.getElementById('e-mes').value || (()=>{const c=getPeriodoAtual();return c.ini.slice(0,7);})();
+  const nomePeriodo = periodoLabel(mes);
+  const deste = filtraPeriodo(lancamentos, mes);
+  if (!deste.length) { document.getElementById('email-text').textContent = 'Nenhum lançamento para este período.'; return; }
   const porPessoa = {};
   deste.forEach(l => { if (!porPessoa[l.nome]) porPessoa[l.nome] = []; porPessoa[l.nome].push(l); });
-  let corpo = `Assunto: Relatório de horas extras — ${nomeMes}\n\nOlá,\n\nSegue o relatório de horas extras referente a ${nomeMes}.\n\n`;
+  let corpo = `Assunto: Relatório de horas extras — ${nomePeriodo}\n\nOlá,\n\nSegue o relatório de horas extras referente ao período ${nomePeriodo}.\n\n`;
   Object.keys(porPessoa).sort().forEach(nome => {
     const itens = porPessoa[nome].sort((a,b) => (a.data||'').localeCompare(b.data||''));
     const totalMin = itens.reduce((a,b) => a+b.minutos, 0);
@@ -527,7 +559,7 @@ function renderEmail() {
     });
   });
   const totalGeral = deste.reduce((a,b) => a+b.minutos, 0);
-  corpo += `\nTotal geral do time: ${minToH(totalGeral)} em ${nomeMes}.\n\nAtenciosamente.`;
+  corpo += `\nTotal geral do time: ${minToH(totalGeral)} no período ${nomePeriodo}.\n\nAtenciosamente.`;
   document.getElementById('email-text').textContent = corpo;
 }
 
